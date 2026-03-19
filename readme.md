@@ -474,7 +474,13 @@ jobs:
 
 #### *(Note: Replace `\<your-username\>` and `\<your-dockerhub-username\>` with your actual IDs.)*
 ---
+
+![Insert Docker Hub Screenshot Here](./screenshot/docker%20hub.JPG)
+
 ![Insert GitHub Actions workflow](./screenshot/GitHub%20Actions%20pipeline.JPG)
+
+
+![Insert ArgoCD updated deployment Screenshot Here](./screenshot/Argocd-updatd-bot.JPG)
 
 ### 4. The Final Automated Workflow
 
