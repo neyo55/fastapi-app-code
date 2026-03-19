@@ -199,11 +199,11 @@ Visit `http://localhost:8000` in your browser!
 ### Testing the Magic of GitOps
 1. **Self-Healing:** Run `kubectl delete pod <pod-name>`. Watch ArgoCD instantly detect the missing pod and spin up a replacement to maintain the desired state.
 
-![Insert ArgoCD Self Healing Screenshot Here](/screenshot/Argocd%20working.JPG)
+![Insert ArgoCD Self Healing Screenshot Here](./screenshot/Argocd%20working.JPG)
 
 2. **Git as the Source of Truth:** Edit `deployment.yaml` in GitHub to change `replicas: 2` to `replicas: 4`. Commit the change. Watch ArgoCD automatically spin up two additional pods without touching the terminal!
 
-![Insert ArgoCD Replica Increase Screenshot Here](/screenshot/4%20replicas.JPG)
+![Insert ArgoCD Replica Increase Screenshot Here](./screenshot/4%20replicas.JPG)
 
 ---
 
@@ -222,8 +222,6 @@ Visit `http://localhost:8000` in your browser!
 
 Relying on `kubectl port-forward` directly to a service is fragile; if a pod dies and restarts during an update, the tunnel collapses. In a production environment, we use an **Ingress** to permanently route traffic. 
 
-
-
 Because Docker Desktop on Windows isolates network IPs, the standard `minikube tunnel` command often fails to bind to port 80. Here is how we built a production-grade Ingress and successfully bypassed the Windows network restrictions.
 
 ### 1. Enable the Ingress Controller
@@ -234,7 +232,7 @@ minikube addons enable ingress
 
 *Verify it is running: `kubectl get pods -n ingress-nginx`*
 
-### 2\. Create the `ingress.yaml` Manifest
+### 2. Create the `ingress.yaml` Manifest
 
 We created a new file in our Git repository to tell the NGINX controller how to route our traffic:
 
@@ -261,7 +259,7 @@ spec:
 
 *We pushed this file to GitHub, and ArgoCD automatically deployed it to the cluster.*
 
-### 3\. The Windows DNS Hack (`hosts` file)
+### 3. The Windows DNS Hack (`hosts` file)
 
 We needed to tell Windows that `fastapi.local` belongs to our local machine.
 
@@ -273,7 +271,7 @@ We needed to tell Windows that `fastapi.local` belongs to our local machine.
     ```
 4.  Save and close.
 
-### 4\. The Port-Forward Bridge (The Workaround)
+### 4. The Port-Forward Bridge (The Workaround)
 
 To bypass Windows blocking port 80, we forwarded the *entire NGINX Ingress Controller* to a custom port (`8888`) on our localhost.
 
@@ -283,7 +281,7 @@ Open a dedicated PowerShell terminal and leave this running:
 kubectl port-forward -n ingress-nginx service/ingress-nginx-controller 8888:80
 ```
 
-### 5\. Access the Production URL
+### 5. Access the Production URL
 
 With the bridge open, we can now access the app via a clean domain name.
 Open a browser and visit:
@@ -330,7 +328,7 @@ We created two new files in our Git repository to hold our variables.
 
 **`configmap.yaml`** (For plain-text, non-sensitive data)
 
-```yaml
+```
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -356,7 +354,7 @@ data:
 
 We updated our `deployment.yaml` to change the image tag to `v3` and map the ConfigMap and Secret into the container's environment:
 
-```yaml
+```
       containers:
       - name: fastapi-container
         image: <your-dockerhub-username>/fastapi-app:v3
@@ -377,7 +375,7 @@ We updated our `deployment.yaml` to change the image tag to `v3` and map the Con
 
 Once pushed to GitHub, ArgoCD automatically synced the new manifests, injected the variables, and performed a rolling update to Version 3.
 
------
+---
 
 ### The GitOps "Secret Paradox" (Important Security Note)
 
@@ -414,7 +412,7 @@ We created a workflow file in the App Repo at `.github/workflows/ci.yaml`.
 
 This pipeline acts as a virtual assistant. Every time code is pushed to the `main` branch, it executes the following steps:
 
-```yaml
+```
 name: Build and Push Docker Image
 
 on:
@@ -474,9 +472,11 @@ jobs:
         git push origin main
 ````
 
-*(Note: Replace `<your-username>` and `<your-dockerhub-username>` with your actual IDs).*
+#### *(Note: Replace `\<your-username\>` and `\<your-dockerhub-username\>` with your actual IDs.)*
+---
+![Insert GitHub Actions workflow](./screenshot/GitHub%20Actions%20pipeline.JPG)
 
-### 4\. The Final Automated Workflow
+### 4. The Final Automated Workflow
 
 With this pipeline in place, the deployment process is completely hands-off:
 
@@ -484,3 +484,7 @@ With this pipeline in place, the deployment process is completely hands-off:
 2.  GitHub Actions spins up, builds the image, and pushes it to Docker Hub tagged with the unique Git SHA.
 3.  The pipeline uses the `GITOPS_TOKEN` to checkout `argocd-fastapi-config`, uses `sed` to update the `deployment.yaml` with the new tag, and pushes the change.
 4.  ArgoCD detects the new commit in the Config Repo and automatically deploys the new version to the Minikube cluster.
+
+![Insert The API page](./screenshot/Api-page.JPG)
+
+
