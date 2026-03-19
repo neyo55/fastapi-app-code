@@ -36,3 +36,30 @@ jobs:
         tags: |
           ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app:${{ steps.generate_tag.outputs.sha_short }}
           ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app:latest
+
+    # --- ADD THESE NEW STEPS TO THE BOTTOM OF YOUR FILE ---
+
+    - name: Checkout the GitOps Config Repository
+      uses: actions/checkout@v4
+      with:
+        # NOTE: Replace 'neyo55' if your GitHub username is different!
+        repository: neyo55/argocd-fastapi-config
+        token: ${{ secrets.GITOPS_TOKEN }}
+        path: gitops-repo
+
+    - name: Update Kubernetes Manifest with new Image Tag
+      run: |
+        cd gitops-repo
+        
+        # 1. Use 'sed' to find the old image tag and replace it with the new Git SHA tag
+        # Replace 'neyo55' with your Docker Hub username!
+        sed -i "s|image: neyo55/fastapi-app:.*|image: neyo55/fastapi-app:${{ steps.generate_tag.outputs.sha_short }}|g" deployment.yaml
+        
+        # 2. Tell Git who is making this automated commit
+        git config user.name "GitHub Actions Bot"
+        git config user.email "actions@github.com"
+        
+        # 3. Commit and push the changes back to GitHub
+        git add deployment.yaml
+        git commit -m "Auto-update image tag to ${{ steps.generate_tag.outputs.sha_short }}"
+        git push origin main

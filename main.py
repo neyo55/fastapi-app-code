@@ -14,7 +14,7 @@ def read_root():
 
     return {
         "message": "Hello from FastAPI!",
-        "version": "3.0 - The Config & Secrets Update",
+        "version": "4.0 - Total GitOps Automation!",
         "pod_name": hostname,
         "environment": environment,
         "api_key_status": api_key, 
