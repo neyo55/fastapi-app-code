@@ -42,7 +42,7 @@ jobs:
     - name: Checkout the GitOps Config Repository
       uses: actions/checkout@v4
       with:
-        # NOTE: Replace 'neyo55' if your GitHub username is different!
+        # NOTE: Replace 'neyo55' for your GitHub username and 'argocd-fastapi-config' for your GitOps repo name!
         repository: neyo55/argocd-fastapi-config
         token: ${{ secrets.GITOPS_TOKEN }}
         path: gitops-repo
