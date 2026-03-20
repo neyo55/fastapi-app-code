@@ -431,7 +431,7 @@ def read_root():
 
 *Built and pushed to Docker Hub as `<your-dockerhub-username>/fastapi-app:v3`.*
 
-### 2\. Create the Configuration Manifests
+### 2. Create the Configuration Manifests
 
 We created two new files in our Git repository to hold our variables.
 
@@ -459,7 +459,7 @@ data:
   SECRET_API_KEY: "bXktc3VwZXItc2VjcmV0LWtleQ=="
 ```
 
-### 3\. Inject Variables into the Deployment
+### 3. Inject Variables into the Deployment
 
 We updated our `deployment.yaml` to change the image tag to `v3` and map the ConfigMap and Secret into the container's environment:
 
@@ -508,7 +508,7 @@ Until this phase, we acted as the Continuous Integration (CI) server by manually
 ### 1. Separation of Concerns (The Two-Repo Architecture)
 Industry standard practice dictates keeping application code separate from infrastructure code:
 * **App Repo (`fastapi-app-code`):** Contains the Python code and `Dockerfile`. Developers work here.
-* **Config Repo (`argocd-fastapi-config`):** Contains the Kubernetes manifests (`deployment.yaml`, `ingress.yaml`). ArgoCD watches this repo.
+* **Config Repo [(`argocd-fastapi-config`)](https://github.com/neyo55/argocd-fastapi-config):** Contains the Kubernetes manifests (`deployment.yaml`, `ingress.yaml`). ArgoCD watches this repo.
 
 ### 2. The Required Security Tokens
 To allow GitHub to build and deploy on our behalf, we provisioned three secrets in our App Repo:
@@ -624,7 +624,7 @@ kubectl apply -f [https://github.com/bitnami-labs/sealed-secrets/releases/downlo
 kubectl get pods -n kube-system -l name=sealed-secrets-controller
 ```
 
-### 2\. Install the `kubeseal` CLI (Client-Side for Windows)
+### 2. Install the `kubeseal` CLI (Client-Side for Windows)
 
 To perform the encryption on our local machine, we downloaded the `kubeseal` CLI tool.
 
@@ -643,7 +643,7 @@ curl -L -o kubeseal.tar.gz https://github.com/bitnami-labs/sealed-secrets/releas
 tar -xf kubeseal.tar.gz kubeseal.exe
 ```
 
-### 3\. Encrypt the Vulnerable Secret
+### 3. Encrypt the Vulnerable Secret
 
 With `kubeseal` installed, we fed our vulnerable `secret.yaml` into the tool to generate an encrypted `sealedsecret.yaml`.
 
@@ -655,7 +655,7 @@ cmd /c ".\kubeseal.exe -o yaml < secret.yaml > sealedsecret.yaml"
 
 The resulting `sealedsecret.yaml` transformed our simple Base64 string into a massive block of cryptographic gibberish, mathematically impossible to crack without the cluster's Private Key.
 
-### 4\. Push to Git and Deploy via ArgoCD
+### 4. Push to Git and Deploy via ArgoCD
 
 We deleted the vulnerable file from our computer and pushed the new, secure encrypted file to our Git repository.
 
@@ -666,7 +666,7 @@ git commit -m "DevSecOps: Replace raw Secret with Bitnami SealedSecret"
 git push origin main
 ```
 
-### 5\. The Final Architecture
+### 5. The Final Architecture
 
 Once ArgoCD synced the new `SealedSecret` manifest to the cluster, the Bitnami controller instantly decrypted it and generated a standard Kubernetes Secret (represented by a padlock icon in the ArgoCD UI).
 
