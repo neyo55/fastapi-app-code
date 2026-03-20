@@ -508,10 +508,11 @@ Until this phase, we acted as the Continuous Integration (CI) server by manually
 ### 1. Separation of Concerns (The Two-Repo Architecture)
 Industry standard practice dictates keeping application code separate from infrastructure code:
 * **App Repo (`fastapi-app-code`):** Contains the Python code and `Dockerfile`. Developers work here.
-* **Config Repo [(`argocd-fastapi-config`)](https://github.com/neyo55/argocd-fastapi-config):** Contains the Kubernetes manifests (`deployment.yaml`, `ingress.yaml`). ArgoCD watches this repo.
+* **Config Repo [(`argocd-fastapi-config`)](https://github.com/neyo55/argocd-fastapi-config):** Contains the Kubernetes manifests (`deployment.yaml`, `ingress.yaml`, `configmap.yaml` and others). ArgoCD watches this repo.
 
 ### 2. The Required Security Tokens
-To allow GitHub to build and deploy on our behalf, we provisioned three secrets in our App Repo:
+To allow GitHub to build and deploy on our behalf, we provisioned three secrets in our App Repo Settings-Secrets and variables-Actions, then `New repository secret` to input the below and their values:
+
 * `DOCKERHUB_USERNAME`: Our Docker Hub ID.
 * `DOCKERHUB_TOKEN`: A Personal Access Token from Docker Hub to push images.
 * `GITOPS_TOKEN`: A GitHub Personal Access Token (PAT) with `repo` scope, allowing the CI pipeline to commit changes to the separate Config Repo.
