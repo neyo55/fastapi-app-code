@@ -18,10 +18,77 @@ Before starting, ensure you have the following installed on your machine (this g
 
 ---
 
+## Project Architecture & Directory Structure
+
+To maintain a professional "Separation of Concerns" (a core DevOps principle), this architecture is split into two completely separate Git repositories: one for the developers, and one for the GitOps controller.
+
+### 1. The Application Code Repository (`fastapi-app-code`)
+This repository contains the application logic and the Continuous Integration (CI) automation.
+
+```
+fastapi-app-code/
+├── .github/
+│   └── workflows/
+│       └── ci.yaml          # The GitHub Actions CI pipeline
+├── main.py                  # The FastAPI Python application
+├── requirements.txt         # Python dependencies
+└── Dockerfile               # Instructions to build the container image
+```
+
+### 2. The GitOps Configuration Repository (`argocd-fastapi-config`)
+This repository acts as the "Single Source of Truth" for our infrastructure. ArgoCD continuously monitors this repository and syncs the YAML manifests to the Kubernetes cluster.
+
+```
+argocd-fastapi-config/
+├── configmap.yaml           # Plain text environment variables
+├── deployment.yaml          # Defines the pods and pulls the Docker image
+├── ingress.yaml             # External routing rules (fastapi.local)
+├── sealedsecret.yaml        # Asymmetrically encrypted sensitive data
+├── service.yaml             # Internal load balancer
+└── README.md                # This documentation file
+```
+
+### 3. The Local (Your Computer) directory setup will look like this, where everything happens.
+
+```
+fastapi-project/
+├── .github/
+│   └── workflows/
+│       └── ci.yaml
+├── main.py
+├── requirements.txt
+├── Dockerfile
+│
+├── kubeseal.exe  # Don't push to GitHub as it remains in the local folder only 
+├── kubeseal.tar.gz  # Don't push to GitHub as it remains in the local folder only 
+│
+├── argocd-fastapi-config/
+│               ├──  configmap.yaml
+│               ├──  deployment.yaml
+│               ├──  ingress.yml
+│               ├──  sealedsecret.yaml
+│               ├──  service.yaml
+│               └──  readme.md                
+│
+├── fastapi-app-code/               
+│               ├── main.py
+│               ├── Dockerfile
+│               ├── requirements.txt
+│               ├── readme.md
+│               └── .github/
+│                       └── workflows/
+│                               └── ci.yaml
+│
+└── Readme.md
+```
+*(Note: The `kubeseal.exe` CLI tool is downloaded to this local folder to perform encryption, but it is explicitly kept out of version control and never pushed to GitHub).*
+
+---
+
 ## Phase 1: Build and Containerize the Application
 First, we created a simple Python FastAPI application that displays a welcome message and the name of the Kubernetes pod it is running on.
 
-### 1. The Code (`main.py`)
+### 1. The Code (`main.py`) Based on the versions 1 - 4 and inclusion of updates and security implementation
 ```python
 from fastapi import FastAPI
 import os
@@ -35,6 +102,48 @@ def read_root():
     return {
         "message": "Hello from FastAPI!",
         "pod_name": hostname,
+        "status": "Unkillable App is Running"
+    }
+```
+```python
+from fastapi import FastAPI
+import os
+import socket
+
+app = FastAPI()
+
+@app.get("/")
+def read_root():
+    hostname = socket.gethostname()
+    return {
+        "message": "Hello from FastAPI!",
+        "version": "2.0 - The Ingress Update",
+        "pod_name": hostname,
+        "status": "Unkillable App is Running"
+    }
+```
+
+```python
+from fastapi import FastAPI
+import os
+import socket
+
+app = FastAPI()
+
+@app.get("/")
+def read_root():
+    hostname = socket.gethostname()
+    
+    # Grab the variables from the Kubernetes environment
+    environment = os.getenv("APP_ENVIRONMENT", "Unknown Environment")
+    api_key = os.getenv("SECRET_API_KEY", "No Key Provided")
+
+    return {
+        "message": "Hello from FastAPI!",
+        "version": "4.0 - Total GitOps Automation!",
+        "pod_name": hostname,
+        "environment": environment,
+        "api_key_status": api_key, 
         "status": "Unkillable App is Running"
     }
 ```
@@ -492,5 +601,77 @@ With this pipeline in place, the deployment process is completely hands-off:
 4.  ArgoCD detects the new commit in the Config Repo and automatically deploys the new version to the Minikube cluster.
 
 ![Insert The API page](./screenshot/Api-page.JPG)
+
+
+-----
+
+## Phase 9: DevSecOps and Sealed Secrets (Fixing the GitOps Security Flaw)
+
+As noted in Phase 7, standard Kubernetes Secrets are only Base64 encoded. Committing them to a Git repository exposes sensitive data to anyone who can read the repository. To achieve true "zero-trust" GitOps, we implemented **Bitnami Sealed Secrets**.
+
+Sealed Secrets uses asymmetric cryptography. A controller inside the Kubernetes cluster holds a Private Key, while developers use a Public Key to encrypt secrets locally. The resulting `SealedSecret` file is completely unreadable and safe to commit to Git. Once ArgoCD deploys it, the controller decrypts it inside the cluster and spawns a native Kubernetes Secret for the application to use.
+
+### 1. Install the Sealed Secrets Controller (Cluster-Side)
+We installed the Bitnami controller into our local Minikube cluster. This controller generates the cryptographic keys and handles the decryption.
+
+```
+kubectl apply -f [https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.27.1/controller.yaml](https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.27.1/controller.yaml)
+````
+
+*Verify the controller is running:*
+
+```
+kubectl get pods -n kube-system -l name=sealed-secrets-controller
+```
+
+### 2\. Install the `kubeseal` CLI (Client-Side for Windows)
+
+To perform the encryption on our local machine, we downloaded the `kubeseal` CLI tool.
+
+Open PowerShell in the config repository (`argocd-fastapi-config`) and run:
+
+```
+# Download the Windows binary using this command on powershell
+Invoke-WebRequest -Uri [https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.27.1/kubeseal-0.27.1-windows-amd64.tar.gz](https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.27.1/kubeseal-0.27.1-windows-amd64.tar.gz) -OutFile kubeseal.tar.gz
+
+OR 
+
+# Use this command on bash 
+curl -L -o kubeseal.tar.gz https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.27.1/kubeseal-0.27.1-windows-amd64.tar.gz
+
+# Extract the executable
+tar -xf kubeseal.tar.gz kubeseal.exe
+```
+
+### 3\. Encrypt the Vulnerable Secret
+
+With `kubeseal` installed, we fed our vulnerable `secret.yaml` into the tool to generate an encrypted `sealedsecret.yaml`.
+
+*(Note: We used `cmd /c` because standard Windows PowerShell sometimes struggles with file redirection symbols).*
+
+```powershell
+cmd /c ".\kubeseal.exe -o yaml < secret.yaml > sealedsecret.yaml"
+```
+
+The resulting `sealedsecret.yaml` transformed our simple Base64 string into a massive block of cryptographic gibberish, mathematically impossible to crack without the cluster's Private Key.
+
+### 4\. Push to Git and Deploy via ArgoCD
+
+We deleted the vulnerable file from our computer and pushed the new, secure encrypted file to our Git repository.
+
+```bash
+git rm secret.yaml
+git add sealedsecret.yaml
+git commit -m "DevSecOps: Replace raw Secret with Bitnami SealedSecret"
+git push origin main
+```
+
+### 5\. The Final Architecture
+
+Once ArgoCD synced the new `SealedSecret` manifest to the cluster, the Bitnami controller instantly decrypted it and generated a standard Kubernetes Secret (represented by a padlock icon in the ArgoCD UI).
+
+Our FastAPI application experienced zero downtime and continued reading the database password exactly as it did before, entirely unaware of the complex encryption happening behind the scenes. We successfully achieved production-grade GitOps security!
+
+![Insert The API page](./screenshot/Argocd-edited-dashboard%20-secretconceal.JPG)
 
 
